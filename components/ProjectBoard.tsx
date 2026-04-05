@@ -2,7 +2,7 @@
 
 import { TaskPriority, TaskStatus } from "@prisma/client";
 import { useRouter } from "next/navigation";
-import { DragEvent, FormEvent, useMemo, useState } from "react";
+import { DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { getApiErrorMessage } from "@/lib/api";
 import type { TaskBoardItem } from "@/lib/types";
 
@@ -13,6 +13,7 @@ type UserOption = {
 
 type ProjectBoardProps = {
   projectId: string;
+  projectName: string;
   initialTasks: TaskBoardItem[];
   users: UserOption[];
 };
@@ -94,20 +95,50 @@ function parseDragPayload(event: DragEvent): DragPayload | null {
   }
 }
 
-export function ProjectBoard({ projectId, initialTasks, users }: ProjectBoardProps) {
+export function ProjectBoard({ projectId, projectName, initialTasks, users }: ProjectBoardProps) {
   const router = useRouter();
   const [tasks, setTasks] = useState(initialTasks);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<TaskFormState>(EMPTY_FORM);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
+  const firstInputRef = useRef<HTMLInputElement | null>(null);
+  const modalOpenTriggerRef = useRef<HTMLElement | null>(null);
 
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+
+  useEffect(() => {
+    if (!isTaskModalOpen) {
+      document.body.style.overflow = "";
+      return;
+    }
+
+    document.body.style.overflow = "hidden";
+
+    const timer = window.setTimeout(() => {
+      firstInputRef.current?.focus();
+    }, 0);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeTaskModal();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.clearTimeout(timer);
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isTaskModalOpen]);
 
   const filteredTasks = useMemo(
     () =>
@@ -173,6 +204,46 @@ export function ProjectBoard({ projectId, initialTasks, users }: ProjectBoardPro
     );
   }
 
+  function closeTaskModal() {
+    setIsTaskModalOpen(false);
+    setEditingTaskId(null);
+    setForm(EMPTY_FORM);
+    setError(null);
+
+    if (modalOpenTriggerRef.current) {
+      modalOpenTriggerRef.current.focus();
+      modalOpenTriggerRef.current = null;
+    }
+  }
+
+  function openCreateTaskModal(trigger?: HTMLElement) {
+    if (trigger) {
+      modalOpenTriggerRef.current = trigger;
+    }
+    setError(null);
+    setEditingTaskId(null);
+    setForm(EMPTY_FORM);
+    setIsTaskModalOpen(true);
+  }
+
+  function openEditTaskModal(task: TaskBoardItem, trigger?: HTMLElement) {
+    if (trigger) {
+      modalOpenTriggerRef.current = trigger;
+    }
+
+    setError(null);
+    setEditingTaskId(task.id);
+    setForm({
+      title: task.title,
+      description: task.description || "",
+      status: task.status,
+      priority: task.priority,
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : "",
+      assigneeId: task.assigneeId || "",
+    });
+    setIsTaskModalOpen(true);
+  }
+
   async function submitTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -203,6 +274,7 @@ export function ProjectBoard({ projectId, initialTasks, users }: ProjectBoardPro
 
       setEditingTaskId(null);
       setForm(EMPTY_FORM);
+      setIsTaskModalOpen(false);
       await reloadTasks();
       router.refresh();
     } catch {
@@ -268,7 +340,7 @@ export function ProjectBoard({ projectId, initialTasks, users }: ProjectBoardPro
   }
 
   function handleDragStart(event: DragEvent<HTMLElement>, task: TaskBoardItem) {
-    if (loading || pendingTaskId) {
+    if (loading || pendingTaskId || isTaskModalOpen) {
       event.preventDefault();
       return;
     }
@@ -287,6 +359,10 @@ export function ProjectBoard({ projectId, initialTasks, users }: ProjectBoardPro
   }
 
   function handleDragOver(event: DragEvent<HTMLDivElement>, targetStatus: TaskStatus) {
+    if (isTaskModalOpen) {
+      return;
+    }
+
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
 
@@ -310,7 +386,7 @@ export function ProjectBoard({ projectId, initialTasks, users }: ProjectBoardPro
     event.preventDefault();
     setDragOverStatus(null);
 
-    if (loading || pendingTaskId) {
+    if (loading || pendingTaskId || isTaskModalOpen) {
       setDraggingTaskId(null);
       return;
     }
@@ -347,96 +423,20 @@ export function ProjectBoard({ projectId, initialTasks, users }: ProjectBoardPro
   }
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-lg font-semibold text-slate-900">Görev Formu</h2>
-        {error ? <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
-
-        <form onSubmit={submitTask} className="grid gap-3 md:grid-cols-2">
-          <input
-            required
-            minLength={2}
-            maxLength={150}
-            value={form.title}
-            onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
-            placeholder="Görev başlığı"
-            className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-cyan-600 md:col-span-2"
-          />
-
-          <textarea
-            rows={3}
-            value={form.description}
-            onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-            placeholder="Açıklama"
-            className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-cyan-600 md:col-span-2"
-          />
-
-          <select
-            value={form.status}
-            onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as TaskStatus }))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-          >
-            {COLUMNS.map((status) => (
-              <option key={status} value={status}>
-                {STATUS_LABEL[status]}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={form.priority}
-            onChange={(event) => setForm((prev) => ({ ...prev, priority: event.target.value as TaskPriority }))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-          >
-            {Object.values(TaskPriority).map((priority) => (
-              <option key={priority} value={priority}>
-                {PRIORITY_LABEL[priority]}
-              </option>
-            ))}
-          </select>
-
-          <input
-            type="date"
-            value={form.dueDate}
-            onChange={(event) => setForm((prev) => ({ ...prev, dueDate: event.target.value }))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-          />
-
-          <select
-            value={form.assigneeId}
-            onChange={(event) => setForm((prev) => ({ ...prev, assigneeId: event.target.value }))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-          >
-            <option value="">Sorumlu seçilmedi</option>
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.name}
-              </option>
-            ))}
-          </select>
-
-          <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-lg bg-cyan-700 px-4 py-2 font-medium text-white transition hover:bg-cyan-800 disabled:opacity-60"
-            >
-              {loading ? "Kaydediliyor..." : editingTaskId ? "Görevi Güncelle" : "Görev Ekle"}
-            </button>
-            {editingTaskId ? (
-              <button
-                type="button"
-                className="rounded-lg border border-slate-300 px-4 py-2 text-slate-700"
-                onClick={() => {
-                  setEditingTaskId(null);
-                  setForm(EMPTY_FORM);
-                }}
-              >
-                İptal
-              </button>
-            ) : null}
-          </div>
-        </form>
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">{projectName}</h1>
+          <p className="text-slate-600">Kanban görünümünde görevlerinizi yönetin.</p>
+        </div>
+        <button
+          type="button"
+          disabled={loading || !!pendingTaskId}
+          onClick={(event) => openCreateTaskModal(event.currentTarget)}
+          className="inline-flex items-center justify-center rounded-lg bg-cyan-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-cyan-800 disabled:opacity-60"
+        >
+          Yeni Görev
+        </button>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -483,15 +483,20 @@ export function ProjectBoard({ projectId, initialTasks, users }: ProjectBoardPro
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="flex-1 min-h-0">
+        <div className="grid h-full min-h-0 gap-4 overflow-y-auto lg:grid-cols-3 lg:overflow-hidden">
         {COLUMNS.map((status) => (
           <div
             key={status}
             onDragOver={(event) => handleDragOver(event, status)}
-            onDragEnter={() => setDragOverStatus(status)}
+            onDragEnter={() => {
+              if (!isTaskModalOpen) {
+                setDragOverStatus(status);
+              }
+            }}
             onDragLeave={(event) => handleDragLeave(event, status)}
             onDrop={(event) => void handleDrop(event, status)}
-            className={`min-h-72 rounded-2xl border bg-white p-3 transition ${
+            className={`flex h-[min(26rem,60dvh)] min-h-0 flex-col rounded-2xl border bg-white p-3 transition lg:h-full ${
               dragOverStatus === status
                 ? "border-cyan-500 bg-cyan-50/40 shadow-inner"
                 : "border-slate-200"
@@ -502,10 +507,10 @@ export function ProjectBoard({ projectId, initialTasks, users }: ProjectBoardPro
               <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{tasksByStatus[status].length}</span>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
               {tasksByStatus[status].length === 0 ? (
                 <div
-                  className={`rounded-lg border border-dashed p-3 text-sm transition ${
+                  className={`flex min-h-full flex-1 items-center justify-center rounded-lg border border-dashed p-3 text-center text-sm transition ${
                     dragOverStatus === status ? "border-cyan-500 text-cyan-700" : "border-slate-300 text-slate-500"
                   }`}
                 >
@@ -515,31 +520,38 @@ export function ProjectBoard({ projectId, initialTasks, users }: ProjectBoardPro
                 tasksByStatus[status].map((task) => (
                   <article
                     key={task.id}
-                    draggable={!loading && !pendingTaskId}
+                    draggable={!loading && !pendingTaskId && !isTaskModalOpen}
                     onDragStart={(event) => handleDragStart(event, task)}
                     onDragEnd={handleDragEnd}
-                    className={`rounded-lg border p-3 transition ${
+                    className={`shrink-0 rounded-lg border p-3 transition ${
                       draggingTaskId === task.id
                         ? "cursor-grabbing border-cyan-400 bg-cyan-50/70 opacity-60"
                         : "cursor-grab border-slate-200"
                     } ${pendingTaskId === task.id ? "pointer-events-none opacity-70" : ""}`}
                   >
-                    <div className="mb-2 flex items-start justify-between gap-2">
-                      <h4 className="text-sm font-semibold text-slate-900">{task.title}</h4>
-                      <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700">
-                        {PRIORITY_LABEL[task.priority]}
-                      </span>
-                    </div>
+                    <div
+                      onDoubleClick={(event) => {
+                        event.stopPropagation();
+                        openEditTaskModal(task, event.currentTarget);
+                      }}
+                    >
+                      <div className="mb-2 flex items-start justify-between gap-2">
+                        <h4 className="text-sm font-semibold text-slate-900">{task.title}</h4>
+                        <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700">
+                          {PRIORITY_LABEL[task.priority]}
+                        </span>
+                      </div>
 
-                    {task.description ? (
-                      <p className="mb-2 text-sm text-slate-600">{task.description}</p>
-                    ) : (
-                      <p className="mb-2 text-sm text-slate-400">Açıklama yok</p>
-                    )}
+                      {task.description ? (
+                        <p className="mb-2 text-sm text-slate-600">{task.description}</p>
+                      ) : (
+                        <p className="mb-2 text-sm text-slate-400">Açıklama yok</p>
+                      )}
 
-                    <div className="mb-2 text-xs text-slate-500">
-                      <p>Sorumlu: {task.assigneeName || "Atanmadı"}</p>
-                      <p>Son tarih: {task.dueDate ? new Date(task.dueDate).toLocaleDateString("tr-TR") : "Yok"}</p>
+                      <div className="mb-2 text-xs text-slate-500">
+                        <p>Sorumlu: {task.assigneeName || "Atanmadı"}</p>
+                        <p>Son tarih: {task.dueDate ? new Date(task.dueDate).toLocaleDateString("tr-TR") : "Yok"}</p>
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
@@ -547,17 +559,7 @@ export function ProjectBoard({ projectId, initialTasks, users }: ProjectBoardPro
                         type="button"
                         className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
                         disabled={loading || !!pendingTaskId}
-                        onClick={() => {
-                          setEditingTaskId(task.id);
-                          setForm({
-                            title: task.title,
-                            description: task.description || "",
-                            status: task.status,
-                            priority: task.priority,
-                            dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : "",
-                            assigneeId: task.assigneeId || "",
-                          });
-                        }}
+                        onClick={(event) => openEditTaskModal(task, event.currentTarget)}
                       >
                         Düzenle
                       </button>
@@ -609,7 +611,124 @@ export function ProjectBoard({ projectId, initialTasks, users }: ProjectBoardPro
             </div>
           </div>
         ))}
+        </div>
       </div>
+
+      {isTaskModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeTaskModal();
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="task-modal-title"
+            className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-xl"
+          >
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 id="task-modal-title" className="text-lg font-semibold text-slate-900">
+                {editingTaskId ? "Görevi Düzenle" : "Yeni Görev"}
+              </h2>
+              <button
+                type="button"
+                aria-label="Kapat"
+                className="rounded p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                onClick={closeTaskModal}
+              >
+                X
+              </button>
+            </div>
+
+            {error ? <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+
+            <form onSubmit={submitTask} className="grid gap-3 md:grid-cols-2">
+              <input
+                ref={firstInputRef}
+                required
+                minLength={2}
+                maxLength={150}
+                value={form.title}
+                onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+                placeholder="Görev başlığı"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-cyan-600 md:col-span-2"
+              />
+
+              <textarea
+                rows={3}
+                value={form.description}
+                onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+                placeholder="Açıklama"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-cyan-600 md:col-span-2"
+              />
+
+              <select
+                value={form.status}
+                onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as TaskStatus }))}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+              >
+                {COLUMNS.map((status) => (
+                  <option key={status} value={status}>
+                    {STATUS_LABEL[status]}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={form.priority}
+                onChange={(event) => setForm((prev) => ({ ...prev, priority: event.target.value as TaskPriority }))}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+              >
+                {Object.values(TaskPriority).map((priority) => (
+                  <option key={priority} value={priority}>
+                    {PRIORITY_LABEL[priority]}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="date"
+                value={form.dueDate}
+                onChange={(event) => setForm((prev) => ({ ...prev, dueDate: event.target.value }))}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+              />
+
+              <select
+                value={form.assigneeId}
+                onChange={(event) => setForm((prev) => ({ ...prev, assigneeId: event.target.value }))}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+              >
+                <option value="">Sorumlu seçilmedi</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
+
+              <div className="flex flex-wrap items-center gap-2 md:col-span-2">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="rounded-lg bg-cyan-700 px-4 py-2 font-medium text-white transition hover:bg-cyan-800 disabled:opacity-60"
+                >
+                  {loading ? "Kaydediliyor..." : editingTaskId ? "Görevi Güncelle" : "Görev Ekle"}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-slate-700"
+                  onClick={closeTaskModal}
+                >
+                  İptal
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
