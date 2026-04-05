@@ -6,12 +6,29 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/auth-flow.test.ts tests/task-crud.test.ts",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:e2e:with-server": "node scripts/run-e2e-with-server.mjs",
+    "test:e2e:ci": "node scripts/run-e2e-with-server.mjs",
+    "test:watch": "vitest",
+    "db:up": "docker compose up -d",
+    "db:setup": "npm run db:up && npm run db:migrate && npm run db:generate && npm run db:seed",
+    "db:down": "docker compose down",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {
+    "@prisma/client": "^6.15.0",
+    "bcryptjs": "^3.0.3",
     "next": "16.2.2",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -20,7 +37,10 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
+    "prisma": "^6.15.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.21.0",
+    "typescript": "^5",
+    "vitest": "^4.1.2"
   }
 }
