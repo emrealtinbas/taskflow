@@ -71,6 +71,41 @@ Troubleshooting:
 - `npx prisma migrate status` baglanti hatasi verirse `.env` icindeki `DATABASE_URL` degerinin calisan PostgreSQL'e isaret ettigini kontrol et.
 - Hizli kurulum icin tek komut: `npm run db:setup`.
 
+## DB Access
+
+Prisma Studio (gecici, terminal acik kaldigi surece aktif):
+
+```bash
+npm run db:studio
+```
+
+Tek komut akisi (DB up + migrate + studio):
+
+```bash
+npm run db:open
+```
+
+Dev + DB + Studio tek komut:
+
+```bash
+npm run dev:full
+```
+
+Kalici web panel (Adminer):
+
+1. `npm run db:up`
+2. `http://localhost:8080`
+3. Login bilgileri:
+   - System: `PostgreSQL`
+   - Server: `postgres`
+   - Username/Password/Database: `.env` ile uyumlu degerler
+
+Sik sorunlar:
+
+- Docker kapaliysa `npm run db:up` ve dolayisiyla Adminer/Studio baglantisi basarisiz olur.
+- Prisma Studio terminale baglidir; terminal kapaninca Studio da kapanir.
+- `5555` (Studio) veya `8080` (Adminer) portu doluysa ilgili sureci kapat veya farkli portla calistir.
+
 ## Test ve Release Dogrulama
 
 Unit/Integration:
@@ -125,6 +160,9 @@ npm run build
 - `npm run db:up`: PostgreSQL docker compose up
 - `npm run db:setup`: db:up + db:migrate + db:generate + db:seed
 - `npm run db:down`: PostgreSQL docker compose down
+- `npm run db:studio`: Prisma Studio (`http://localhost:5555`)
+- `npm run db:open`: db:up + db:migrate + db:studio
+- `npm run dev:full`: db:up + app dev + prisma studio
 - `npm run db:migrate`: Prisma migrate dev
 - `npm run db:migrate:deploy`: Prisma migrate deploy
 - `npm run db:generate`: Prisma generate
