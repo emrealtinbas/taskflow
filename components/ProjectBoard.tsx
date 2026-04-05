@@ -30,6 +30,18 @@ const PRIORITY_LABEL: Record<TaskPriority, string> = {
   HIGH: "Yüksek",
 };
 
+const PRIORITY_BADGE_CLASS: Record<TaskPriority, string> = {
+  LOW: "bg-sky-50 text-sky-800 border border-sky-100",
+  MEDIUM: "bg-amber-50 text-amber-800 border border-amber-100",
+  HIGH: "bg-rose-50 text-rose-800 border border-rose-100",
+};
+
+const COLUMN_TONE_CLASS: Record<TaskStatus, string> = {
+  TODO: "bg-[var(--bg-elevated)]",
+  IN_PROGRESS: "bg-[color-mix(in_srgb,var(--brand-soft)_35%,white)]",
+  DONE: "bg-[var(--info-soft)]/55",
+};
+
 const COLUMNS: TaskStatus[] = [TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE];
 const DRAG_TASK_MIME = "application/taskflow-task";
 
@@ -424,28 +436,28 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-elevated)] p-4 shadow-[0_8px_22px_rgba(15,31,51,0.06)] sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">{projectName}</h1>
-          <p className="text-slate-600">Kanban görünümünde görevlerinizi yönetin.</p>
+          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">{projectName}</h1>
+          <p className="text-[var(--text-secondary)]">Kanban görünümünde görevlerinizi yönetin.</p>
         </div>
         <button
           type="button"
           disabled={loading || !!pendingTaskId}
           onClick={(event) => openCreateTaskModal(event.currentTarget)}
-          className="inline-flex items-center justify-center rounded-lg bg-cyan-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-cyan-800 disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-lg bg-[var(--brand-600)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--brand-700)] disabled:opacity-60"
         >
           Yeni Görev
         </button>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h3 className="mb-3 text-base font-semibold text-slate-900">Filtreler</h3>
+      <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-elevated)] p-4 shadow-[0_8px_22px_rgba(15,31,51,0.05)]">
+        <h3 className="mb-3 text-base font-semibold text-[var(--text-primary)]">Filtreler</h3>
         <div className="grid gap-2 sm:grid-cols-3">
           <select
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+            className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-[var(--text-primary)] transition focus:border-[var(--brand-600)]"
           >
             <option value="all">Tüm durumlar</option>
             {COLUMNS.map((status) => (
@@ -458,7 +470,7 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
           <select
             value={priorityFilter}
             onChange={(event) => setPriorityFilter(event.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+            className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-[var(--text-primary)] transition focus:border-[var(--brand-600)]"
           >
             <option value="all">Tüm öncelikler</option>
             {Object.values(TaskPriority).map((priority) => (
@@ -471,7 +483,7 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
           <select
             value={assigneeFilter}
             onChange={(event) => setAssigneeFilter(event.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+            className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-[var(--text-primary)] transition focus:border-[var(--brand-600)]"
           >
             <option value="all">Tüm sorumlular</option>
             {users.map((user) => (
@@ -496,22 +508,26 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
             }}
             onDragLeave={(event) => handleDragLeave(event, status)}
             onDrop={(event) => void handleDrop(event, status)}
-            className={`flex h-[min(26rem,60dvh)] min-h-0 flex-col rounded-2xl border bg-white p-3 transition lg:h-full ${
+            className={`flex h-[min(26rem,60dvh)] min-h-0 flex-col rounded-2xl border p-3 transition lg:h-full ${
               dragOverStatus === status
-                ? "border-cyan-500 bg-cyan-50/40 shadow-inner"
-                : "border-slate-200"
+                ? "border-[var(--brand-600)] bg-[var(--brand-soft)] shadow-inner"
+                : `border-[var(--border-soft)] ${COLUMN_TONE_CLASS[status]}`
             }`}
           >
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-slate-900">{STATUS_LABEL[status]}</h3>
-              <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{tasksByStatus[status].length}</span>
+              <h3 className="text-base font-semibold text-[var(--text-primary)]">{STATUS_LABEL[status]}</h3>
+              <span className="rounded bg-[var(--bg-soft)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">
+                {tasksByStatus[status].length}
+              </span>
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
               {tasksByStatus[status].length === 0 ? (
                 <div
                   className={`flex min-h-full flex-1 items-center justify-center rounded-lg border border-dashed p-3 text-center text-sm transition ${
-                    dragOverStatus === status ? "border-cyan-500 text-cyan-700" : "border-slate-300 text-slate-500"
+                    dragOverStatus === status
+                      ? "border-[var(--brand-600)] bg-[var(--brand-soft)] text-[var(--brand-700)]"
+                      : "border-[var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-secondary)]"
                   }`}
                 >
                   Bu kolonda görev yok. Kartı buraya bırakabilirsiniz.
@@ -525,8 +541,8 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
                     onDragEnd={handleDragEnd}
                     className={`shrink-0 rounded-lg border p-3 transition ${
                       draggingTaskId === task.id
-                        ? "cursor-grabbing border-cyan-400 bg-cyan-50/70 opacity-60"
-                        : "cursor-grab border-slate-200"
+                        ? "cursor-grabbing border-[var(--brand-600)] bg-[var(--brand-soft)] opacity-70"
+                        : "cursor-grab border-[var(--border-soft)] bg-[var(--bg-card)] hover:border-[var(--brand-600)]/35 hover:shadow-[0_4px_14px_rgba(15,31,51,0.08)]"
                     } ${pendingTaskId === task.id ? "pointer-events-none opacity-70" : ""}`}
                   >
                     <div
@@ -536,19 +552,19 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
                       }}
                     >
                       <div className="mb-2 flex items-start justify-between gap-2">
-                        <h4 className="text-sm font-semibold text-slate-900">{task.title}</h4>
-                        <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700">
+                        <h4 className="text-sm font-semibold text-[var(--text-primary)]">{task.title}</h4>
+                        <span className={`rounded px-2 py-0.5 text-[11px] ${PRIORITY_BADGE_CLASS[task.priority]}`}>
                           {PRIORITY_LABEL[task.priority]}
                         </span>
                       </div>
 
                       {task.description ? (
-                        <p className="mb-2 text-sm text-slate-600">{task.description}</p>
+                        <p className="mb-2 text-sm text-[var(--text-secondary)]">{task.description}</p>
                       ) : (
-                        <p className="mb-2 text-sm text-slate-400">Açıklama yok</p>
+                        <p className="mb-2 text-sm text-[color-mix(in_srgb,var(--text-secondary)_75%,white)]">Açıklama yok</p>
                       )}
 
-                      <div className="mb-2 text-xs text-slate-500">
+                      <div className="mb-2 text-xs text-[var(--text-secondary)]">
                         <p>Sorumlu: {task.assigneeName || "Atanmadı"}</p>
                         <p>Son tarih: {task.dueDate ? new Date(task.dueDate).toLocaleDateString("tr-TR") : "Yok"}</p>
                       </div>
@@ -557,7 +573,7 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
+                        className="rounded border border-[var(--border-soft)] bg-[var(--bg-card)] px-2 py-1 text-xs text-[var(--text-secondary)] transition hover:border-[var(--brand-600)]/35 hover:bg-[var(--bg-soft)]"
                         disabled={loading || !!pendingTaskId}
                         onClick={(event) => openEditTaskModal(task, event.currentTarget)}
                       >
@@ -566,7 +582,7 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
 
                       <button
                         type="button"
-                        className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
+                        className="rounded border border-[var(--border-soft)] bg-[var(--bg-card)] px-2 py-1 text-xs text-[var(--text-secondary)] transition hover:border-rose-300 hover:bg-rose-50"
                         disabled={loading || !!pendingTaskId}
                         onClick={() => void removeTask(task.id)}
                       >
@@ -576,7 +592,7 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
                       {task.status !== TaskStatus.TODO ? (
                         <button
                           type="button"
-                          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
+                          className="rounded border border-[var(--border-soft)] bg-[var(--bg-card)] px-2 py-1 text-xs text-[var(--text-secondary)] transition hover:border-[var(--brand-600)]/35 hover:bg-[var(--bg-soft)]"
                           disabled={loading || !!pendingTaskId}
                           onClick={() =>
                             void patchTask(task.id, {
@@ -592,7 +608,7 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
                       {task.status !== TaskStatus.DONE ? (
                         <button
                           type="button"
-                          className="rounded bg-cyan-700 px-2 py-1 text-xs text-white"
+                          className="rounded bg-[var(--brand-600)] px-2 py-1 text-xs text-white transition hover:bg-[var(--brand-700)]"
                           disabled={loading || !!pendingTaskId}
                           onClick={() =>
                             void patchTask(task.id, {
@@ -616,7 +632,7 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
 
       {isTaskModalOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
               closeTaskModal();
@@ -627,16 +643,16 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
             role="dialog"
             aria-modal="true"
             aria-labelledby="task-modal-title"
-            className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-xl"
+            className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-[0_24px_60px_rgba(12,34,56,0.24)]"
           >
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 id="task-modal-title" className="text-lg font-semibold text-slate-900">
+              <h2 id="task-modal-title" className="text-lg font-semibold text-[var(--text-primary)]">
                 {editingTaskId ? "Görevi Düzenle" : "Yeni Görev"}
               </h2>
               <button
                 type="button"
                 aria-label="Kapat"
-                className="rounded p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                className="rounded p-1 text-[var(--text-secondary)] transition hover:bg-[var(--bg-soft)] hover:text-[var(--text-primary)]"
                 onClick={closeTaskModal}
               >
                 X
@@ -654,7 +670,7 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
                 value={form.title}
                 onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
                 placeholder="Görev başlığı"
-                className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-cyan-600 md:col-span-2"
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-[var(--text-primary)] outline-none transition focus:border-[var(--brand-600)] focus-visible:ring-2 focus-visible:ring-[var(--brand-600)]/35 md:col-span-2"
               />
 
               <textarea
@@ -662,13 +678,13 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
                 value={form.description}
                 onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
                 placeholder="Açıklama"
-                className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-cyan-600 md:col-span-2"
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-[var(--text-primary)] outline-none transition focus:border-[var(--brand-600)] focus-visible:ring-2 focus-visible:ring-[var(--brand-600)]/35 md:col-span-2"
               />
 
               <select
                 value={form.status}
                 onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as TaskStatus }))}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-[var(--text-primary)] outline-none transition focus:border-[var(--brand-600)] focus-visible:ring-2 focus-visible:ring-[var(--brand-600)]/35"
               >
                 {COLUMNS.map((status) => (
                   <option key={status} value={status}>
@@ -680,7 +696,7 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
               <select
                 value={form.priority}
                 onChange={(event) => setForm((prev) => ({ ...prev, priority: event.target.value as TaskPriority }))}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-[var(--text-primary)] outline-none transition focus:border-[var(--brand-600)] focus-visible:ring-2 focus-visible:ring-[var(--brand-600)]/35"
               >
                 {Object.values(TaskPriority).map((priority) => (
                   <option key={priority} value={priority}>
@@ -693,13 +709,13 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
                 type="date"
                 value={form.dueDate}
                 onChange={(event) => setForm((prev) => ({ ...prev, dueDate: event.target.value }))}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-[var(--text-primary)] outline-none transition focus:border-[var(--brand-600)] focus-visible:ring-2 focus-visible:ring-[var(--brand-600)]/35"
               />
 
               <select
                 value={form.assigneeId}
                 onChange={(event) => setForm((prev) => ({ ...prev, assigneeId: event.target.value }))}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-[var(--text-primary)] outline-none transition focus:border-[var(--brand-600)] focus-visible:ring-2 focus-visible:ring-[var(--brand-600)]/35"
               >
                 <option value="">Sorumlu seçilmedi</option>
                 {users.map((user) => (
@@ -713,13 +729,13 @@ export function ProjectBoard({ projectId, projectName, initialTasks, users }: Pr
                 <button
                   type="submit"
                   disabled={loading}
-                  className="rounded-lg bg-cyan-700 px-4 py-2 font-medium text-white transition hover:bg-cyan-800 disabled:opacity-60"
+                  className="rounded-lg bg-[var(--brand-600)] px-4 py-2 font-medium text-white transition hover:bg-[var(--brand-700)] disabled:opacity-60"
                 >
                   {loading ? "Kaydediliyor..." : editingTaskId ? "Görevi Güncelle" : "Görev Ekle"}
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-slate-700"
+                  className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-elevated)] px-4 py-2 text-[var(--text-secondary)] transition hover:bg-[var(--bg-soft)]"
                   onClick={closeTaskModal}
                 >
                   İptal
